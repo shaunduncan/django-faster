@@ -1,4 +1,4 @@
-django-fast-dates
-=================
+django-faster
+=============
 
-Tools for doing faster/more efficient queries for manager .dates() and admin date_hierarchy
+Tools for doing faster/more efficient things for large django projects
