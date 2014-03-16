@@ -10,3 +10,6 @@ class FasterManager(Manager):
 
     def dates(self, *args, **kwargs):
         return self.get_fast_queryset().approximate_dates(*args, **kwargs)
+
+    def datetimes(self, *args, **kwargs):
+        return self.get_fast_queryset().approximate_datetimes(*args, **kwargs)
