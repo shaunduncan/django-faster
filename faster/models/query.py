@@ -19,7 +19,7 @@ KIND_TO_RRULE = {
 }
 
 
-class FasterQuerySet(QuerySet):
+class FasterQuerySetBase(QuerySet):
 
     def _make_tz_aware(self, value, timezone):
         """
@@ -55,13 +55,15 @@ class FasterQuerySet(QuerySet):
         # Generate datetimes from min_year -> max_year, delta 'kind'
         rule = rrule.rrule(KIND_TO_RRULE[kind], dtstart=dates['min'])
 
-        dates = sorted(rule.between(dates['min'], dates['max'], inc=True),
-                       reverse=(order == 'DESC'))
+        return sorted(rule.between(dates['min'], dates['max'], inc=True),
+                      reverse=(order == 'DESC'))
 
-        # Django >= 1.6 returns dates instead of datetimes
-        if VERSION >= (1, 6):
-            return six.moves.map(lambda dt: dt.date(), dates)
-        return dates
+
+class FasterQuerySet16(FasterQuerySetBase):
+
+    def approximate_dates(self, *args, **kwargs):
+        datetimes = super(FasterQuerySet16, self).approximate_dates(*args, **kwargs)
+        return six.moves.map(lambda dt: dt.date(), datetimes)
 
     def approximate_datetimes(self, field_name, kind, order='ASC', tzinfo=None):
         """
@@ -101,3 +103,10 @@ class FasterQuerySet(QuerySet):
         if tzinfo is not None:
             return six.moves.map(lambda dt: self._make_tz_aware(dt, tzinfo), datetimes)
         return datetimes
+
+
+# Depending on the version of django is installed, use the correct manager
+if VERSION >= (1, 6):
+    FasterQuerySet = FasterQuerySet16
+else:
+    FasterQuerySet = FasterQuerySetBase
