@@ -1,6 +1,3 @@
-import pytz
-import six
-
 from dateutil import rrule
 
 from django import VERSION
@@ -20,15 +17,6 @@ KIND_TO_RRULE = {
 
 
 class FasterQuerySetBase(QuerySet):
-
-    def _make_tz_aware(self, value, timezone):
-        """
-        This is mostly copypasta from django/utils/timezone.py that is pre-1.6 compatible
-        """
-        value.replace(tzinfo=None)
-        if hasattr(timezone, 'localize'):
-            return timezone.localize(value, is_dst=None)
-        return value.replace(tzinfo=timezone)
 
     def approximate_dates(self, field_name, kind, order='ASC'):
         """
@@ -60,8 +48,13 @@ class FasterQuerySetBase(QuerySet):
 
 
 class FasterQuerySet16(FasterQuerySetBase):
+    """
+    A sublass of FasterQuerySetBase that exposes behavior that is present in django >= 1.6
+    """
 
     def approximate_dates(self, *args, **kwargs):
+        from django.utils import six
+
         datetimes = super(FasterQuerySet16, self).approximate_dates(*args, **kwargs)
         return six.moves.map(lambda dt: dt.date(), datetimes)
 
@@ -77,6 +70,9 @@ class FasterQuerySet16(FasterQuerySetBase):
         is probably OK for small tables, but not if your tables are sufficiently
         large
         """
+        from django.utils import six
+        from django.utils import timezone
+
         if kind not in ('year', 'month', 'day', 'hour', 'minute', 'second'):
             raise AssertionError("'kind' must be one of 'year', 'month', 'day', "
                                  "'hour', 'minute', 'or 'second'.")
@@ -86,7 +82,7 @@ class FasterQuerySet16(FasterQuerySetBase):
 
         if settings.USE_TZ:
             if tzinfo is None:
-                tzinfo = pytz.timezone(settings.TIME_ZONE)
+                tzinfo = timezone.get_current_timezone()
         else:
             tzinfo = None
 
@@ -101,7 +97,7 @@ class FasterQuerySet16(FasterQuerySetBase):
                            reverse=(order == 'DESC'))
 
         if tzinfo is not None:
-            return six.moves.map(lambda dt: self._make_tz_aware(dt, tzinfo), datetimes)
+            return six.moves.map(lambda dt: timezone.make_aware(dt, tzinfo), datetimes)
         return datetimes
 
 
